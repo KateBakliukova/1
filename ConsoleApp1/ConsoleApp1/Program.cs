@@ -1,7 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ConsoleApp1
@@ -26,19 +28,52 @@ Sapien faucibus et molestie ac feugiat. Venenatis urna cursus eget nunc sceleris
 Ac tortor vitae purus faucibus.A condimentum vitae sapien pellentesque habitant morbi tristique. Tortor consequat id porta nibh venenatis cras sed felis eget. Ut venenatis tellus in metus vulputate eu scelerisque felis imperdiet. Semper quis lectus nulla at volutpat. A iaculis at erat pellentesque adipiscing commodo elit at.Facilisi nullam vehicula ipsum a arcu cursus vitae congue mauris. Congue quisque egestas diam in arcu cursus euismod quis. Nunc eget lorem dolor sed viverra ipsum nunc aliquet bibendum. Nulla pharetra diam sit amet nisl. Elementum curabitur vitae nunc sed velit dignissim sodales ut.Sed sed risus pretium quam vulputate dignissim.Vitae semper quis lectus nulla at volutpat diam. Neque convallis a cras semper auctor neque.Adipiscing elit ut aliquam purus sit amet luctus. At quis risus sed vulputate odio. Amet consectetur adipiscing elit pellentesque.Posuere lorem ipsum dolor sit.Fermentum leo vel orci porta.";
 
         public static string path = @"C:\file.txt";
+        static ReaderWriterLock rwl = new ReaderWriterLock();
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             var b = a.Split(new string[] { Environment.NewLine }, System.StringSplitOptions.None);
+            var numThreads = b.Length;
 
-            Parallel.ForEach(b, str =>
+            for (int i = 0; i < numThreads; i++)
             {
-                using (StreamWriter sw = new StreamWriter(path, false, System.Text.Encoding.Default))
+                await WriteTask(b[i]);
+            }
+
+            Thread[] t = new Thread[numThreads];
+
+            for (int i = 0; i < numThreads; i++)
+            {
+                t[i] = new Thread(() => WriteThread(b[i]));
+                t[i].Start();
+            }
+
+        }
+
+        static async Task WriteTask(string str)
+        {
+            using (StreamWriter sw = new StreamWriter(path, true, System.Text.Encoding.Default))
+            {
+                await sw.WriteLineAsync(str);
+            }
+        }
+
+        static void WriteThread(string str)
+        {
+            rwl.AcquireWriterLock(10);
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(path, true, System.Text.Encoding.Default))
                 {
                     sw.WriteLine(str);
                 }
-            });
+            }
+            finally
+            {
+                rwl.ReleaseWriterLock();
+            }
         }
 
     }
 }
+
